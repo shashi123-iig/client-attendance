@@ -1,22 +1,25 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import dbConnect from '@/lib/mongodb';
-import Attendance from '@/models/Attendance';
+import dbConnect from "@/lib/mongodb";
+import Attendance from "@/models/Attendance";
 
 export async function GET(request) {
   try {
+    // Lazy import NextAuth so it doesn't execute during build
+    const { getServerSession } = await import("next-auth");
+    const { authOptions } = await import("@/app/api/auth/[...nextauth]/route");
+
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'admin') {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || session.user.role !== "admin") {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Connect to database
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employeeId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const employeeId = searchParams.get("employeeId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     let query = {};
 
@@ -35,7 +38,7 @@ export async function GET(request) {
 
     return Response.json({ attendances });
   } catch (error) {
-    console.error('Admin attendance API error:', error);
-    return Response.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Admin attendance API error:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
