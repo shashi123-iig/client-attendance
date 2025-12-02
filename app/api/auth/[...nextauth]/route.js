@@ -1,8 +1,6 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
 
 export const authOptions = {
   providers: [
@@ -18,6 +16,9 @@ export const authOptions = {
         }
 
         try {
+          const dbConnect = (await import('@/lib/mongodb')).default;
+          const User = (await import('@/models/User')).default;
+
           await dbConnect();
 
           const user = await User.findOne({ email: credentials.email });

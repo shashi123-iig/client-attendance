@@ -1,11 +1,10 @@
-import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
-import bcrypt from 'bcryptjs';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
-
 export async function GET(request) {
   try {
+    const dbConnect = (await import('@/lib/mongodb')).default;
+    const User = (await import('@/models/User')).default;
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('../auth/[...nextauth]/route');
+
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -25,6 +24,12 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const dbConnect = (await import('@/lib/mongodb')).default;
+    const User = (await import('@/models/User')).default;
+    const bcrypt = (await import('bcryptjs')).default;
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('../auth/[...nextauth]/route');
+
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {

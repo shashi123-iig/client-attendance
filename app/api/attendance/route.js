@@ -1,10 +1,10 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import dbConnect from '@/lib/mongodb';
-import Attendance from '@/models/Attendance';
-
 export async function POST(request) {
   try {
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/app/api/auth/[...nextauth]/route');
+    const dbConnect = (await import('@/lib/mongodb')).default;
+    const Attendance = (await import('@/models/Attendance')).default;
+
     const session = await getServerSession(authOptions);
 
     if (!session) {
