@@ -1,34 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const AttendanceSchema = new mongoose.Schema({
-  employeeId: {
-    type: String,
-    required: true,
+const AttendanceSchema = new mongoose.Schema(
+  {
+    employeeId: { type: String, required: true },
+    date: { type: Date, required: true },
+    checkIn: { type: String },
+    checkOut: { type: String },
+    hoursWorked: { type: Number },
   },
-  employeeName: {
-    type: String,
-    required: true,
-  },
-  checkIn: {
-    type: Date,
-    required: true,
-  },
-  checkOut: {
-    type: Date,
-  },
-  date: {
-    type: Date,
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ['present', 'absent', 'late'],
-    default: 'present',
-  },
-  totalHours: {
-    type: Number,
-    default: 0,
-  },
-});
+  { timestamps: true }
+);
 
-export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
+// Prevent model overwrite on Vercel
+export default mongoose.models.Attendance ||
+  mongoose.model("Attendance", AttendanceSchema);

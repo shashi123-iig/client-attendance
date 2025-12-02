@@ -1,19 +1,18 @@
-import dbConnect from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
-
 export async function GET(request) {
   try {
-    // Lazy import NextAuth so it doesn't execute during build
+    // Lazy load everything so nothing runs at build time
+    const dbConnect = (await import("@/lib/mongodb")).default;
+    const Attendance = (await import("@/models/Attendance")).default;
     const { getServerSession } = await import("next-auth");
     const { authOptions } = await import("@/app/api/auth/[...nextauth]/route");
 
+    // Authenticate
     const session = await getServerSession(authOptions);
-
     if (!session || session.user.role !== "admin") {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Connect to database
+    // Connect DB
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
