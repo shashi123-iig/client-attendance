@@ -2,34 +2,15 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect, useMemo } from 'react';
-import { Users, LogOut, Filter, UserPlus } from 'lucide-react';
+import { Users, LogOut, Filter, UserPlus, BarChart3, FileText, Settings } from 'lucide-react';
+import Sidebar from '@/components/Sidebar';
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session || session.user.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">Unauthorized access</p>
-        </div>
-      </div>
-    );
-  }
-  const [activeTab, setActiveTab] = useState('employees');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [employees, setEmployees] = useState([]);
   const [attendances, setAttendances] = useState([]);
+  const [stats, setStats] = useState({ totalEmployees: 0, totalAttendances: 0, todayCheckIns: 0 });
   const [employeeId, setEmployeeId] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -63,19 +44,26 @@ export default function AdminDashboard() {
   }, [attendances, employeeId, startDate, endDate]);
 
   useEffect(() => {
-    const fetchAttendances = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/attendance/admin');
-        const data = await response.json();
-        if (response.ok) {
-          setAttendances(data.attendances);
+        if (activeTab === 'dashboard' || activeTab === 'reports') {
+          const response = await fetch('/api/attendance/admin');
+          const data = await response.json();
+          if (response.ok) {
+            setAttendances(data.attendances);
+            // Calculate stats
+            const totalAttendances = data.attendances.length;
+            const today = new Date().toDateString();
+            const todayCheckIns = data.attendances.filter(att => new Date(att.date).toDateString() === today).length;
+            setStats({ totalEmployees: 0, totalAttendances, todayCheckIns }); // totalEmployees can be fetched separately if needed
+          }
         }
       } catch (error) {
-        console.error('Error fetching attendances:', error);
+        console.error('Error fetching data:', error);
       }
     };
-    fetchAttendances();
-  }, []);
+    fetchData();
+  }, [activeTab]);
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString();
@@ -118,28 +106,384 @@ export default function AdminDashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600">Manage employee attendance</p>
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Users className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Total Employees</dt>
+                        <dd className="text-lg font-medium text-gray-900">{stats.totalEmployees}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <BarChart3 className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Total Attendances</dt>
+                        <dd className="text-lg font-medium text-gray-900">{stats.totalAttendances}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <FileText className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Today's Check-ins</dt>
+                        <dd className="text-lg font-medium text-gray-900">{stats.todayCheckIns}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => signOut()}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+            {/* Recent Attendances */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Attendances</h3>
+              </div>
+              <ul className="divide-y divide-gray-200">
+                {attendances.slice(0, 5).map((attendance) => (
+                  <li key={attendance._id}>
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-medium text-indigo-600">
+                                {attendance?.employeeName?.charAt(0)?.toUpperCase() ?? "?"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-900">
+                              {attendance?.employeeName ?? "Unknown"}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              ID: {attendance.employeeId}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col text-right">
+                          <p className="text-sm text-gray-600">
+                            Date: {formatDate(attendance.date)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Check-in: {formatTime(attendance.checkIn)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        );
+      case 'employees':
+        return (
+          <div className="space-y-6">
+            {/* Create Employee Button */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                {showCreateForm ? 'Cancel' : 'Add Employee'}
+              </button>
+            </div>
+
+            {/* Create Employee Form */}
+            {showCreateForm && (
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Employee</h3>
+                  <form onSubmit={handleCreateEmployee} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          id="name"
+                          required
+                          value={newEmployee.name}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700">
+                          Employee ID
+                        </label>
+                        <input
+                          type="text"
+                          id="employeeId"
+                          required
+                          value={newEmployee.employeeId}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, employeeId: e.target.value })}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          required
+                          value={newEmployee.email}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          id="password"
+                          required
+                          value={newEmployee.password}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateForm(false)}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Create Employee
+                      </button>
+                    </div>
+                  </form>
+                  {createMessage && (
+                    <p className={`mt-4 text-sm ${createMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                      {createMessage}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Employee List - Placeholder for now */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Employee List</h3>
+                <p className="mt-1 text-sm text-gray-600">Manage your employees here.</p>
+              </div>
+              <div className="text-center py-8">
+                <p className="text-gray-500">Employee management features coming soon.</p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'reports':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Attendance Reports</h2>
+
+            {/* Filters */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="flex items-center mb-4">
+                  <Filter className="w-6 h-6 text-indigo-600" />
+                  <h3 className="ml-3 text-lg font-medium text-gray-900">Filters</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700">
+                      Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      id="employeeId"
+                      value={employeeId}
+                      onChange={(e) => setEmployeeId(e.target.value)}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="Search by Employee ID"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      id="startDate"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      id="endDate"
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={clearFilters}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance List */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <div className="px-4 py-5 sm:px-6">
+                <div className="flex items-center">
+                  <Users className="w-6 h-6 text-indigo-600" />
+                  <h3 className="ml-3 text-lg leading-6 font-medium text-gray-900">
+                    Employee Attendance ({filteredAttendances.length})
+                  </h3>
+                </div>
+              </div>
+              <ul className="divide-y divide-gray-200">
+                {filteredAttendances.map((attendance) => (
+                  <li key={attendance._id}>
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-medium text-indigo-600">
+                                {attendance?.employeeName?.charAt(0)?.toUpperCase() ?? "?"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-900">
+                              {attendance?.employeeName ?? "Unknown"}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              ID: {attendance.employeeId}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col text-right">
+                          <p className="text-sm text-gray-600">
+                            Date: {formatDate(attendance.date)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Check-in: {formatTime(attendance.checkIn)}
+                          </p>
+                          {attendance.checkOut && (
+                            <p className="text-sm text-gray-600">
+                              Check-out: {formatTime(attendance.checkOut)}
+                            </p>
+                          )}
+                          {attendance.totalHours > 0 && (
+                            <p className="text-sm font-medium text-gray-900">
+                              Hours: {attendance.totalHours.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {filteredAttendances.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No attendance records found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">System Settings</h3>
+                <p className="text-gray-600">Settings panel coming soon.</p>
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="flex-1 flex flex-col">
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+                <p className="text-sm text-gray-600">Manage your attendance system</p>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6">
+          {renderContent()}
+        </main>
+      </div>
+    </div>
+  );
           {/* Create Employee Button */}
           <div className="mb-6">
             <button
