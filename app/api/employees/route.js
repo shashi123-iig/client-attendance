@@ -82,3 +82,38 @@ export async function POST(request) {
     return Response.json({ error: 'Failed to create employee' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const dbConnect = (await import('@/lib/mongodb')).default;
+    const User = (await import('@/models/User')).default;
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('../auth/[...nextauth]/route');
+
+    const session = await getServerSession(authOptions);
+
+    if (!session || session.user.role !== 'admin') {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await dbConnect();
+
+    const { searchParams } = new URL(request.url);
+    const employeeId = searchParams.get('id');
+
+    if (!employeeId) {
+      return Response.json({ error: 'Employee ID is required' }, { status: 400 });
+    }
+
+    const deletedEmployee = await User.findByIdAndDelete(employeeId);
+
+    if (!deletedEmployee) {
+      return Response.json({ error: 'Employee not found' }, { status: 404 });
+    }
+
+    return Response.json({ message: 'Employee deleted successfully' });
+  } catch (error) {
+    console.error('Delete employee error:', error);
+    return Response.json({ error: 'Failed to delete employee' }, { status: 500 });
+  }
+}

@@ -6,34 +6,9 @@ import { Clock, LogOut, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">Unauthorized access</p>
-        </div>
-      </div>
-    );
-  }
   const [attendances, setAttendances] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    fetchReports();
-  }, []);
 
   const fetchReports = async () => {
     try {
@@ -82,6 +57,10 @@ export default function Dashboard() {
   const formatTime = (date) => {
     return new Date(date).toLocaleTimeString();
   };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">

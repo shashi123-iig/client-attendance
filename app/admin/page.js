@@ -4,12 +4,14 @@ import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, LogOut, Filter, UserPlus,
-  BarChart3, Calendar, Clock, TrendingUp
+  BarChart3, Calendar, Clock, TrendingUp,
+  Download, Trash2, Edit, FileText
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { data: session } = useSession();
   const [attendances, setAttendances] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [stats, setStats] = useState({
     totalEmployees: 0,
     totalAttendances: 0,
@@ -53,53 +55,29 @@ export default function AdminDashboard() {
     return filtered;
   }, [attendances, employeeId, startDate, endDate]);
 
-  // -------------------------
-  // FETCH DATA
-  // -------------------------
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/attendance/admin');
-        const data = await response.json();
 
-        if (response.ok) {
-          setAttendances(data.attendances);
-
-          // Calculate stats
-          const totalAttendances = data.attendances.length;
-          const today = new Date().toDateString();
-
-          const todayAtt = data.attendances.filter(
-            att => new Date(att.date).toDateString() === today
-          );
-
-          const todayCheckIns = todayAtt.length;
-          const totalHours = todayAtt.reduce(
-            (sum, att) => sum + (att.totalHours || 0), 0
-          );
-
-          const avgHours = todayCheckIns > 0 ? totalHours / todayCheckIns : 0;
-
-          setStats({
-            totalEmployees: 0,
-            totalAttendances,
-            todayCheckIns,
-            avgHours
-          });
-        }
-      } catch (error) {
-        console.error('Fetch error:', error);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   // -------------------------
   // DATE/TIME FORMAT
   // -------------------------
   const formatDate = (d) => new Date(d).toLocaleDateString();
   const formatTime = (d) => new Date(d).toLocaleTimeString();
+
+  // -------------------------
+  // FETCH EMPLOYEES
+  // -------------------------
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees');
+      const data = await response.json();
+      if (response.ok) {
+        setEmployees(data.employees);
+        setStats(prev => ({ ...prev, totalEmployees: data.employees.length }));
+      }
+    } catch (error) {
+      console.error('Fetch employees error:', error);
+    }
+  };
 
   // -------------------------
   // CLEAR FILTERS
@@ -130,6 +108,7 @@ export default function AdminDashboard() {
         setCreateMessage('Employee created successfully!');
         setNewEmployee({ name: '', email: '', password: '', employeeId: '' });
         setShowCreateForm(false);
+        fetchEmployees(); // Refresh employee list
       } else {
         setCreateMessage(data.error);
       }
@@ -137,6 +116,105 @@ export default function AdminDashboard() {
       setCreateMessage('An error occurred!');
     }
   };
+
+  // -------------------------
+  // DELETE EMPLOYEE
+  // -------------------------
+  const handleDeleteEmployee = async (employeeId) => {
+    if (!confirm('Are you sure you want to delete this employee?')) return;
+
+    try {
+      const response = await fetch(`/api/employees?id=${employeeId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        fetchEmployees(); // Refresh list
+        alert('Employee deleted successfully!');
+      } else {
+        alert('Failed to delete employee');
+      }
+    } catch (error) {
+      alert('An error occurred while deleting employee');
+    }
+  };
+
+  // -------------------------
+  // DOWNLOAD REPORT
+  // -------------------------
+  const handleDownload = async (format) => {
+    try {
+      const params = new URLSearchParams({
+        format,
+        employeeId: employeeId || '',
+        startDate: startDate || '',
+        endDate: endDate || ''
+      });
+
+      const response = await fetch(`/api/attendance/reports/download?${params}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_report.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download report');
+      }
+    } catch (error) {
+      alert('An error occurred while downloading');
+    }
+  };
+
+  // -------------------------
+  // FETCH DATA
+  // -------------------------
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch attendances
+        const attResponse = await fetch('/api/attendance/admin');
+        const attData = await attResponse.json();
+
+        if (attResponse.ok) {
+          setAttendances(attData.attendances);
+
+          // Calculate stats
+          const totalAttendances = attData.attendances.length;
+          const today = new Date().toDateString();
+
+          const todayAtt = attData.attendances.filter(
+            att => new Date(att.date).toDateString() === today
+          );
+
+          const todayCheckIns = todayAtt.length;
+          const totalHours = todayAtt.reduce(
+            (sum, att) => sum + (att.totalHours || 0), 0
+          );
+
+          const avgHours = todayCheckIns > 0 ? totalHours / todayCheckIns : 0;
+
+          setStats(prev => ({
+            ...prev,
+            totalAttendances,
+            todayCheckIns,
+            avgHours
+          }));
+        }
+
+        // Fetch employees
+        await fetchEmployees();
+      } catch (error) {
+        console.error('Fetch error:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // ----------------------------------------------------------------------
   // UI STARTS HERE  (DO NOT CHANGE FUNCTIONALITY)
@@ -292,11 +370,88 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ---------------- Employee Management ---------------- */}
+        <div className="bg-white border rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Employee Management</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDownload('csv')}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download CSV
+              </button>
+              <button
+                onClick={() => handleDownload('json')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download JSON
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Email</Th>
+                  <Th>Employee ID</Th>
+                  <Th>Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {employees.map(emp => (
+                  <tr key={emp._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <span className="text-indigo-600 font-semibold">
+                            {emp.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="font-medium text-gray-900">{emp.name}</span>
+                      </div>
+                    </td>
+                    <Td>{emp.email}</Td>
+                    <Td>{emp.employeeId}</Td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => alert('Edit functionality coming soon')}
+                          className="text-indigo-600 hover:text-indigo-900 p-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEmployee(emp._id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {employees.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="text-gray-500 mt-2">No employees found</p>
+            </div>
+          )}
+        </div>
+
         {/* ---------------- Filters ---------------- */}
         <div className="bg-white border rounded-xl shadow-lg p-6">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="h-5 w-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Attendance Filters</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -333,13 +488,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ---------------- Attendance Table ---------------- */}
+        {/* ---------------- Attendance Reports ---------------- */}
         <div className="bg-white border rounded-xl shadow-lg p-6">
-          
+
           <div className="flex items-center gap-2 mb-4">
-            <Users className="h-5 w-5 text-indigo-600" />
+            <FileText className="h-5 w-5 text-indigo-600" />
             <h3 className="text-lg font-semibold text-gray-900">
-              Employee Attendance ({filteredAttendances.length})
+              Attendance Reports ({filteredAttendances.length})
             </h3>
           </div>
 
