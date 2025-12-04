@@ -38,23 +38,21 @@ export async function GET(request) {
       // Generate CSV
       const csvHeaders = 'Employee ID,Employee Name,Date,Check In,Check Out,Total Hours\n';
       const csvRows = attendances.map(att => {
-        const checkIn = att.checkIn ? new Date(att.checkIn).toLocaleString() : '';
-        const checkOut = att.checkOut ? new Date(att.checkOut).toLocaleString() : '';
+        const checkIn = att.checkIn ? `"${new Date(att.checkIn).toLocaleString()}"` : '';
+        const checkOut = att.checkOut ? `"${new Date(att.checkOut).toLocaleString()}"` : '';
         const totalHours = att.totalHours ? att.totalHours.toFixed(2) : '';
-        return `${att.employeeId},"${att.employeeName}",${new Date(att.date).toLocaleDateString()},${checkIn},${checkOut},${totalHours}`;
+        const date = `"${new Date(att.date).toLocaleDateString()}"`;
+        return `${att.employeeId},"${att.employeeName}",${date},${checkIn},${checkOut},${totalHours}`;
       }).join('\n');
 
       const csvContent = csvHeaders + csvRows;
 
       return new Response(csvContent, {
         headers: {
-          'Content-Type': 'text/csv',
+          'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': 'attachment; filename="attendance_report.csv"'
         }
       });
-    } else if (format === 'json') {
-      // Return JSON for PDF generation on client side
-      return Response.json({ attendances });
     }
 
     return Response.json({ error: 'Invalid format' }, { status: 400 });
