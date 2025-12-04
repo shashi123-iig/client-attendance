@@ -33,9 +33,22 @@ export async function GET(request) {
       };
     }
 
-    const attendances = await Attendance.find(query).sort({ date: -1 });
+    const attendances = await Attendance.find(query)
+  .populate("employeeId", "name employeeId") // populate name + employeeId
+  .sort({ date: -1 });
 
-    return Response.json({ attendances });
+// Convert structured output (IMPORTANT)
+const formatted = attendances.map(att => ({
+  _id: att._id,
+  employeeId: att.employeeId.employeeId,
+  employeeName: att.employeeId.name,
+  date: att.date,
+  checkIn: att.checkIn,
+  checkOut: att.checkOut,
+  totalHours: att.totalHours,
+}));
+
+    return Response.json({ attendances: formatted });
   } catch (error) {
     console.error("Admin attendance API error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });

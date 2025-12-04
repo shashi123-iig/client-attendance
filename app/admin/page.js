@@ -1,16 +1,14 @@
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Users, LogOut, Filter, UserPlus } from 'lucide-react';
-import Sidebar from '@/components/Sidebar';
 
 export default function AdminDashboard() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState('employees');
   const [employees, setEmployees] = useState([]);
   const [attendances, setAttendances] = useState([]);
-  const [filteredAttendances, setFilteredAttendances] = useState([]);
   const [employeeId, setEmployeeId] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -24,19 +22,7 @@ export default function AdminDashboard() {
   });
   const [createMessage, setCreateMessage] = useState('');
 
-  const fetchAttendances = async () => {
-    try {
-      const response = await fetch('/api/attendance/admin');
-      const data = await response.json();
-      if (response.ok) {
-        setAttendances(data.attendances);
-      }
-    } catch (error) {
-      console.error('Error fetching attendances:', error);
-    }
-  };
-
-  const filterAttendances = () => {
+  const filteredAttendances = useMemo(() => {
     let filtered = attendances;
 
     if (employeeId) {
@@ -52,16 +38,23 @@ export default function AdminDashboard() {
       });
     }
 
-    setFilteredAttendances(filtered);
-  };
+    return filtered;
+  }, [attendances, employeeId, startDate, endDate]);
 
   useEffect(() => {
+    const fetchAttendances = async () => {
+      try {
+        const response = await fetch('/api/attendance/admin');
+        const data = await response.json();
+        if (response.ok) {
+          setAttendances(data.attendances);
+        }
+      } catch (error) {
+        console.error('Error fetching attendances:', error);
+      }
+    };
     fetchAttendances();
   }, []);
-
-  useEffect(() => {
-    filterAttendances();
-  }, [attendances, employeeId, startDate, endDate]);
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString();
@@ -296,13 +289,13 @@ export default function AdminDashboard() {
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-indigo-600">
-                              {attendance.employeeName.charAt(0).toUpperCase()}
+                             {attendance?.employeeName?.charAt(0)?.toUpperCase() ?? "?"}
                             </span>
                           </div>
                         </div>
                         <div className="ml-4">
                           <p className="text-sm font-medium text-gray-900">
-                            {attendance.employeeName}
+                          {attendance?.employeeName ?? "Unknown"}
                           </p>
                           <p className="text-sm text-gray-500">
                             ID: {attendance.employeeId}
