@@ -34,14 +34,13 @@ export async function GET(request) {
     }
 
     const attendances = await Attendance.find(query)
-  .populate("employeeId", "name employeeId") // populate name + employeeId
-  .sort({ date: -1 });
+      .sort({ date: -1 });
 
 // Convert structured output (IMPORTANT)
 const formatted = attendances.map(att => ({
   _id: att._id,
-  employeeId: att.employeeId.employeeId,
-  employeeName: att.employeeId.name,
+  employeeId: att.employeeId,
+  employeeName: att.employeeName,
   date: att.date,
   checkIn: att.checkIn,
   checkOut: att.checkOut,
