@@ -1,16 +1,14 @@
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
-import { useState, useEffect, useCallback } from 'react';
-import { Clock, LogOut, Calendar, QrCode, X } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useState, useEffect } from 'react';
+import { Clock, LogOut, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [attendances, setAttendances] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [showScanner, setShowScanner] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -29,20 +27,12 @@ export default function Dashboard() {
     setMessage('');
 
     try {
-      let apiUrl = '/api/attendance';
-      let body = { type };
-
-      if (type === 'toggle') {
-        apiUrl = '/api/checkin';
-        body = {};
-      }
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ type }),
       });
 
       const data = await response.json();
@@ -68,42 +58,9 @@ export default function Dashboard() {
     return new Date(date).toLocaleTimeString();
   };
 
-  const onScanSuccess = useCallback((decodedText, decodedResult) => {
-    // Check if it's the checkin URL
-    if (decodedText.includes('/checkin')) {
-      handleAttendance('toggle');
-      setShowScanner(false);
-    } else {
-      setMessage('Invalid QR code. Please scan the office check-in QR code.');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onScanFailure = (error) => {
-    // console.warn(`Code scan error = ${error}`);
-  };
-
   useEffect(() => {
     fetchReports();
   }, []);
-
-  useEffect(() => {
-    let scanner;
-    if (showScanner) {
-      scanner = new Html5QrcodeScanner(
-        'qr-reader',
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
-      );
-      scanner.render(onScanSuccess, onScanFailure);
-    }
-
-    return () => {
-      if (scanner) {
-        scanner.clear();
-      }
-    };
-  }, [showScanner, onScanSuccess]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,15 +108,7 @@ export default function Dashboard() {
                     Check Out
                   </button>
                 </div>
-                <div className="mt-4">
-                  <button
-                    onClick={() => setShowScanner(true)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    Scan QR Code
-                  </button>
-                </div>
+
                 {message && (
                   <p className={`mt-4 text-sm ${message.includes('successfully') || message.includes('Checked') ? 'text-green-600' : 'text-red-600'}`}>
                     {message}
@@ -241,26 +190,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* QR Scanner Modal */}
-      {showScanner && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Scan QR Code</h3>
-              <button
-                onClick={() => setShowScanner(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div id="qr-reader" className="w-full"></div>
-            <p className="text-sm text-gray-600 mt-2">
-              Point your camera at the office check-in QR code to toggle your attendance.
-            </p>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

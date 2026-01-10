@@ -3,15 +3,14 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Users, LogOut, Filter, UserPlus,
+  Users, UserPlus,
   BarChart3, Calendar, Clock, TrendingUp,
-  Download, Trash2, Edit, FileText, QrCode
+  Download, Trash2, Edit, FileText
 } from 'lucide-react';
-import QRCode from 'react-qr-code';
 import Sidebar from '@/components/Sidebar';
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [attendances, setAttendances] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -38,6 +37,7 @@ export default function AdminDashboard() {
   });
 
   const [createMessage, setCreateMessage] = useState('');
+  const [attendanceMessage, setAttendanceMessage] = useState('');
 
   // -------------------------
   // FILTERED ATTENDANCES
@@ -87,8 +87,8 @@ export default function AdminDashboard() {
         setEmployees(data.employees);
         setStats(prev => ({ ...prev, totalEmployees: data.employees.length }));
       }
-    } catch (error) {
-      console.error('Fetch employees error:', error);
+    } catch {
+      console.error('Fetch employees error');
     }
   };
 
@@ -128,8 +128,42 @@ export default function AdminDashboard() {
       } else {
         setCreateMessage(data.error);
       }
-    } catch (error) {
+    } catch {
       setCreateMessage('An error occurred!');
+    }
+  };
+
+  // -------------------------
+  // ADMIN CHECK-IN/OUT
+  // -------------------------
+  const handleAdminAttendance = async (employeeId, type) => {
+    setAttendanceMessage('');
+
+    try {
+      const response = await fetch('/api/admin/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId, type })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAttendanceMessage(`${type === 'checkin' ? 'Checked in' : 'Checked out'} successfully for ${employeeId}`);
+        // Refresh attendance data if needed
+        if (activeTab === 'attendance') {
+          // Refresh attendance data
+          const attResponse = await fetch('/api/attendance/admin');
+          const attData = await attResponse.json();
+          if (attResponse.ok) {
+            setAttendances(attData.attendances);
+          }
+        }
+      } else {
+        setAttendanceMessage(data.error);
+      }
+    } catch {
+      setAttendanceMessage('An error occurred');
     }
   };
 
@@ -150,7 +184,7 @@ export default function AdminDashboard() {
       } else {
         alert('Failed to delete employee');
       }
-    } catch (error) {
+    } catch {
       alert('An error occurred while deleting employee');
     }
   };
@@ -183,7 +217,7 @@ export default function AdminDashboard() {
         const error = await response.text();
         alert(`Failed to download report: ${error}`);
       }
-    } catch (error) {
+    } catch {
       alert('An error occurred while downloading');
     }
   };
@@ -226,8 +260,8 @@ export default function AdminDashboard() {
 
         // Fetch employees
         await fetchEmployees();
-      } catch (error) {
-        console.error('Fetch error:', error);
+      } catch {
+        console.error('Fetch error');
       }
     };
 
@@ -330,28 +364,7 @@ export default function AdminDashboard() {
                </div>
              </div>
 
-             {/* QR Code for Check-in */}
-             <div className="bg-white border rounded-xl shadow-lg p-6">
-               <div className="flex items-center gap-3 mb-4">
-                 <QrCode className="h-6 w-6 text-indigo-600" />
-                 <h2 className="text-xl font-semibold text-gray-900">QR Code Check-in</h2>
-               </div>
-               <p className="text-sm text-gray-600 mb-4">
-                 Employees can scan this QR code with their phone camera to check-in or check-out.
-                 Print this QR code and place it at the office entrance.
-               </p>
-               <div className="flex justify-center">
-                 <div className="bg-white p-4 rounded-lg border">
-                   <QRCode
-                     value={typeof window !== 'undefined' ? window.location.origin + '/checkin' : '/checkin'}
-                     size={200}
-                   />
-                 </div>
-               </div>
-               <p className="text-xs text-gray-500 mt-2 text-center">
-                 URL: {typeof window !== 'undefined' ? window.location.origin + '/checkin' : '/checkin'}
-               </p>
-             </div>
+
           </div>
         )}
 
@@ -411,11 +424,16 @@ export default function AdminDashboard() {
                        Create Employee
                      </button>
                    </div>
-                   {createMessage && (
-                     <p className={`text-sm mt-4 ${createMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
-                       {createMessage}
-                     </p>
-                   )}
+                    {createMessage && (
+                      <p className={`text-sm mt-4 ${createMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                        {createMessage}
+                      </p>
+                    )}
+                    {attendanceMessage && (
+                      <p className={`text-sm mt-4 ${attendanceMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                        {attendanceMessage}
+                      </p>
+                    )}
                  </form>
                )}
 
@@ -423,12 +441,13 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="min-w-full border divide-y divide-gray-200">
                   <thead className="bg-gray-50">
-                    <tr>
-                      <Th>Employee</Th>
-                      <Th>Email</Th>
-                      <Th>Employee ID</Th>
-                      <Th>Actions</Th>
-                    </tr>
+                     <tr>
+                       <Th>Employee</Th>
+                       <Th>Email</Th>
+                       <Th>Employee ID</Th>
+                       <Th>Attendance</Th>
+                       <Th>Actions</Th>
+                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {employees.map(emp => (
@@ -443,26 +462,44 @@ export default function AdminDashboard() {
                             <span className="font-medium text-gray-900">{emp.name}</span>
                           </div>
                         </td>
-                        <Td>{emp.email}</Td>
-                        <Td>{emp.employeeId}</Td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => alert('Edit functionality coming soon')}
-                              className="text-indigo-600 hover:text-indigo-900 p-2 rounded hover:bg-indigo-50"
-                              title="Edit Employee"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEmployee(emp._id)}
-                              className="text-red-600 hover:text-red-900 p-2 rounded hover:bg-red-50"
-                              title="Delete Employee"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
+                         <Td>{emp.email}</Td>
+                         <Td>{emp.employeeId}</Td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                           <div className="flex gap-2">
+                             <button
+                               onClick={() => handleAdminAttendance(emp.employeeId, 'checkin')}
+                               className="text-green-600 hover:text-green-900 px-3 py-1 rounded text-xs bg-green-50 hover:bg-green-100"
+                               title="Check In"
+                             >
+                               Check In
+                             </button>
+                             <button
+                               onClick={() => handleAdminAttendance(emp.employeeId, 'checkout')}
+                               className="text-red-600 hover:text-red-900 px-3 py-1 rounded text-xs bg-red-50 hover:bg-red-100"
+                               title="Check Out"
+                             >
+                               Check Out
+                             </button>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                           <div className="flex gap-2">
+                             <button
+                               onClick={() => alert('Edit functionality coming soon')}
+                               className="text-indigo-600 hover:text-indigo-900 p-2 rounded hover:bg-indigo-50"
+                               title="Edit Employee"
+                             >
+                               <Edit className="h-4 w-4" />
+                             </button>
+                             <button
+                               onClick={() => handleDeleteEmployee(emp._id)}
+                               className="text-red-600 hover:text-red-900 p-2 rounded hover:bg-red-50"
+                               title="Delete Employee"
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </button>
+                           </div>
+                         </td>
                       </tr>
                     ))}
                   </tbody>
@@ -706,20 +743,6 @@ function Td({ children }) {
   );
 }
 
-function TabButton({ active, onClick, icon, label }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-        active
-          ? 'border-indigo-500 text-indigo-600'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+
 
 
