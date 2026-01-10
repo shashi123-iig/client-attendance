@@ -7,6 +7,7 @@ import {
   BarChart3, Calendar, Clock, TrendingUp,
   Download, Trash2, Edit, FileText
 } from 'lucide-react';
+import Sidebar from '@/components/Sidebar';
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -23,6 +24,9 @@ export default function AdminDashboard() {
   const [employeeId, setEmployeeId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchEmployeeId, setSearchEmployeeId] = useState('');
+  const [searchStartDate, setSearchStartDate] = useState('');
+  const [searchEndDate, setSearchEndDate] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const [newEmployee, setNewEmployee] = useState({
@@ -45,16 +49,23 @@ export default function AdminDashboard() {
     }
 
     if (startDate && endDate) {
-      const s = new Date(startDate);
-      const e = new Date(endDate);
       filtered = filtered.filter(att => {
-        const d = new Date(att.date);
-        return d >= s && d <= e;
+        const d = new Date(att.date).toISOString().split('T')[0];
+        return d >= startDate && d <= endDate;
       });
     }
 
     return filtered;
   }, [attendances, employeeId, startDate, endDate]);
+
+  // -------------------------
+  // SEARCH FUNCTION
+  // -------------------------
+  const handleSearch = () => {
+    setEmployeeId(searchEmployeeId);
+    setStartDate(searchStartDate);
+    setEndDate(searchEndDate);
+  };
 
 
 
@@ -87,6 +98,9 @@ export default function AdminDashboard() {
     setEmployeeId('');
     setStartDate('');
     setEndDate('');
+    setSearchEmployeeId('');
+    setSearchStartDate('');
+    setSearchEndDate('');
   };
 
   // -------------------------
@@ -154,7 +168,8 @@ export default function AdminDashboard() {
 
       const response = await fetch(`/api/attendance/reports/download?${params}`);
       if (response.ok) {
-        const blob = await response.blob();
+        const csv = await response.text();
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -164,7 +179,8 @@ export default function AdminDashboard() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Failed to download report');
+        const error = await response.text();
+        alert(`Failed to download report: ${error}`);
       }
     } catch (error) {
       alert('An error occurred while downloading');
@@ -222,7 +238,7 @@ export default function AdminDashboard() {
   // ----------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-white">
 
       {/* ---------------- Header ---------------- */}
       <header className="bg-white shadow border-b">
@@ -239,50 +255,16 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* RIGHT */}
-          <button
-            onClick={() => signOut()}
-            className="px-4 py-2 flex items-center gap-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </button>
+
         </div>
       </header>
 
       {/* ---------------- MAIN CONTENT ---------------- */}
-      <main className="max-w-7xl mx-auto py-8 px-4">
-        {/* Tab Navigation */}
-        <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <TabButton
-                active={activeTab === 'dashboard'}
-                onClick={() => setActiveTab('dashboard')}
-                icon={<BarChart3 className="h-5 w-5" />}
-                label="Dashboard"
-              />
-              <TabButton
-                active={activeTab === 'employees'}
-                onClick={() => setActiveTab('employees')}
-                icon={<Users className="h-5 w-5" />}
-                label="Employees"
-              />
-              <TabButton
-                active={activeTab === 'attendance'}
-                onClick={() => setActiveTab('attendance')}
-                icon={<Clock className="h-5 w-5" />}
-                label="Attendance"
-              />
-              <TabButton
-                active={activeTab === 'reports'}
-                onClick={() => setActiveTab('reports')}
-                icon={<FileText className="h-5 w-5" />}
-                label="Reports"
-              />
-            </nav>
-          </div>
+      <main className="flex min-h-screen">
+        <div className="w-64 bg-white shadow-lg min-h-full">
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} signOut={signOut} />
         </div>
+        <div className="flex-1 py-8 px-4 max-w-7xl mx-auto">
 
         {/* Tab Content */}
         {activeTab === 'dashboard' && (
@@ -355,63 +337,63 @@ export default function AdminDashboard() {
             <div className="bg-white border rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Employee Management</h2>
-                <button
-                  onClick={() => setShowCreateForm(!showCreateForm)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 flex items-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  {showCreateForm ? "Cancel" : "Add Employee"}
-                </button>
-              </div>
+                 <button
+                   onClick={() => setShowCreateForm(!showCreateForm)}
+                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 flex items-center gap-2"
+                 >
+                   <UserPlus className="h-4 w-4" />
+                   {showCreateForm ? "Cancel" : "Add Employee"}
+                  </button>
+                </div>
 
-              {showCreateForm && (
-                <form onSubmit={handleCreateEmployee} className="space-y-6 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField
-                      label="Full Name"
-                      value={newEmployee.name}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                    />
-                    <InputField
-                      label="Employee ID"
-                      value={newEmployee.employeeId}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, employeeId: e.target.value })}
-                    />
-                    <InputField
-                      label="Email"
-                      type="email"
-                      value={newEmployee.email}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                    />
-                    <InputField
-                      label="Password"
-                      type="password"
-                      value={newEmployee.password}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateForm(false)}
-                      className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
-                    >
-                      Create Employee
-                    </button>
-                  </div>
-                  {createMessage && (
-                    <p className={`text-sm mt-4 ${createMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
-                      {createMessage}
-                    </p>
-                  )}
-                </form>
-              )}
+               {showCreateForm && (
+                 <form onSubmit={handleCreateEmployee} className="space-y-6 mb-6 p-4 bg-white rounded-lg border">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <InputField
+                       label="Full Name"
+                       value={newEmployee.name}
+                       onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                     />
+                     <InputField
+                       label="Employee ID"
+                       value={newEmployee.employeeId}
+                       onChange={(e) => setNewEmployee({ ...newEmployee, employeeId: e.target.value })}
+                     />
+                     <InputField
+                       label="Email"
+                       type="email"
+                       value={newEmployee.email}
+                       onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                     />
+                     <InputField
+                       label="Password"
+                       type="password"
+                       value={newEmployee.password}
+                       onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                     />
+                   </div>
+                   <div className="flex justify-end gap-4">
+                     <button
+                       type="button"
+                       onClick={() => setShowCreateForm(false)}
+                       className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100"
+                     >
+                       Cancel
+                     </button>
+                     <button
+                       type="submit"
+                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                     >
+                       Create Employee
+                     </button>
+                   </div>
+                   {createMessage && (
+                     <p className={`text-sm mt-4 ${createMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                       {createMessage}
+                     </p>
+                   )}
+                 </form>
+               )}
 
               {/* Employee List */}
               <div className="overflow-x-auto">
@@ -553,24 +535,32 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <InputField
                   label="Employee ID"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
+                  value={searchEmployeeId}
+                  onChange={(e) => setSearchEmployeeId(e.target.value)}
                 />
                 <InputField
                   label="Start Date"
                   type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  value={searchStartDate}
+                  onChange={(e) => setSearchStartDate(e.target.value)}
                 />
                 <InputField
                   label="End Date"
                   type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  value={searchEndDate}
+                  onChange={(e) => setSearchEndDate(e.target.value)}
                 />
+                <div className="flex items-end">
+                  <button
+                    onClick={handleSearch}
+                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                  >
+                    Search
+                  </button>
+                </div>
                 <div className="flex items-end">
                   <button
                     onClick={clearFilters}
@@ -638,7 +628,10 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        </div>
       </main>
+
+
     </div>
   );
 }
@@ -667,7 +660,7 @@ function InputField({ label, type = "text", value, onChange }) {
         type={type}
         value={value}
         onChange={onChange}
-        className="w-full px-3 py-2 border rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+        className="w-full px-3 py-2 border rounded-lg shadow-sm bg-white text-black focus:ring-indigo-500 focus:border-indigo-500"
       />
     </div>
   );
@@ -704,3 +697,5 @@ function TabButton({ active, onClick, icon, label }) {
     </button>
   );
 }
+
+

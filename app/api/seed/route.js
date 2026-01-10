@@ -20,18 +20,27 @@ export async function POST() {
       await admin.save();
     }
 
-    // Create sample employee
-    const employeeExists = await User.findOne({ email: 'employee@example.com' });
-    if (!employeeExists) {
-      const hashedPassword = await bcrypt.hash('employee123', 10);
-      const employee = new User({
-        name: 'John Doe',
-        email: 'employee@example.com',
-        password: hashedPassword,
-        role: 'employee',
-        employeeId: 'EMP001',
-      });
-      await employee.save();
+    // Create sample employees
+    const employees = [
+      { name: 'John Doe', email: 'john@example.com', employeeId: 'EMP001' },
+      { name: 'Jane Smith', email: 'jane@example.com', employeeId: 'EMP002' },
+      { name: 'Bob Johnson', email: 'bob@example.com', employeeId: 'EMP003' },
+      { name: 'Alice Brown', email: 'alice@example.com', employeeId: 'EMP004' },
+    ];
+
+    for (const emp of employees) {
+      const exists = await User.findOne({ email: emp.email });
+      if (!exists) {
+        const hashedPassword = await bcrypt.hash('password123', 10);
+        const employee = new User({
+          name: emp.name,
+          email: emp.email,
+          password: hashedPassword,
+          role: 'employee',
+          employeeId: emp.employeeId,
+        });
+        await employee.save();
+      }
     }
 
     return Response.json({ message: 'Sample users created successfully' });

@@ -3,7 +3,7 @@ export async function GET(request) {
     const dbConnect = (await import('@/lib/mongodb')).default;
     const Attendance = (await import('@/models/Attendance')).default;
     const { getServerSession } = await import('next-auth');
-    const { authOptions } = await import('../auth/[...nextauth]/route');
+    const { authOptions } = await import('../../auth/[...nextauth]/route');
 
     const session = await getServerSession(authOptions);
 
@@ -26,9 +26,16 @@ export async function GET(request) {
     }
 
     if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return Response.json({ error: 'Invalid date format' }, { status: 400 });
+      }
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
       query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
+        $gte: start,
+        $lte: end,
       };
     }
 
