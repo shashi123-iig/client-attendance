@@ -5,8 +5,9 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Users, LogOut, Filter, UserPlus,
   BarChart3, Calendar, Clock, TrendingUp,
-  Download, Trash2, Edit, FileText
+  Download, Trash2, Edit, FileText, QrCode
 } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import Sidebar from '@/components/Sidebar';
 
 export default function AdminDashboard() {
@@ -297,37 +298,60 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white border rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Attendance Activity</h2>
-              <div className="space-y-4">
-                {attendances.slice(0, 5).map(att => (
-                  <div key={att._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-indigo-600 font-semibold">
-                          {att?.employeeName?.charAt(0)?.toUpperCase() ?? "?"}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{att?.employeeName ?? "Unknown"}</p>
-                        <p className="text-sm text-gray-500">{formatDate(att.date)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">
-                        Check-in: {formatTime(att.checkIn)}
-                      </p>
-                      {att.checkOut && (
-                        <p className="text-sm text-gray-600">
-                          Check-out: {formatTime(att.checkOut)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+             {/* Recent Activity */}
+             <div className="bg-white border rounded-xl shadow-lg p-6">
+               <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Attendance Activity</h2>
+               <div className="space-y-4">
+                 {attendances.slice(0, 5).map(att => (
+                   <div key={att._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                     <div className="flex items-center gap-3">
+                       <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                         <span className="text-indigo-600 font-semibold">
+                           {att?.employeeName?.charAt(0)?.toUpperCase() ?? "?"}
+                         </span>
+                       </div>
+                       <div>
+                         <p className="font-medium text-gray-900">{att?.employeeName ?? "Unknown"}</p>
+                         <p className="text-sm text-gray-500">{formatDate(att.date)}</p>
+                       </div>
+                     </div>
+                     <div className="text-right">
+                       <p className="text-sm text-gray-600">
+                         Check-in: {formatTime(att.checkIn)}
+                       </p>
+                       {att.checkOut && (
+                         <p className="text-sm text-gray-600">
+                           Check-out: {formatTime(att.checkOut)}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             {/* QR Code for Check-in */}
+             <div className="bg-white border rounded-xl shadow-lg p-6">
+               <div className="flex items-center gap-3 mb-4">
+                 <QrCode className="h-6 w-6 text-indigo-600" />
+                 <h2 className="text-xl font-semibold text-gray-900">QR Code Check-in</h2>
+               </div>
+               <p className="text-sm text-gray-600 mb-4">
+                 Employees can scan this QR code with their phone camera to check-in or check-out.
+                 Print this QR code and place it at the office entrance.
+               </p>
+               <div className="flex justify-center">
+                 <div className="bg-white p-4 rounded-lg border">
+                   <QRCode
+                     value={typeof window !== 'undefined' ? window.location.origin + '/checkin' : '/checkin'}
+                     size={200}
+                   />
+                 </div>
+               </div>
+               <p className="text-xs text-gray-500 mt-2 text-center">
+                 URL: {typeof window !== 'undefined' ? window.location.origin + '/checkin' : '/checkin'}
+               </p>
+             </div>
           </div>
         )}
 

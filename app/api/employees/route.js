@@ -3,7 +3,7 @@ export async function GET(request) {
     const dbConnect = (await import('@/lib/mongodb')).default;
     const User = (await import('@/models/User')).default;
     const { getServerSession } = await import('next-auth');
-    const { authOptions } = await import('../auth/[...nextauth]/route');
+    const { authOptions } = await import('@/app/api/auth/[...nextauth]/route');
 
     const session = await getServerSession(authOptions);
 
@@ -28,7 +28,7 @@ export async function POST(request) {
     const User = (await import('@/models/User')).default;
     const bcrypt = (await import('bcryptjs')).default;
     const { getServerSession } = await import('next-auth');
-    const { authOptions } = await import('../auth/[...nextauth]/route');
+    const { authOptions } = await import('@/app/api/auth/[...nextauth]/route');
 
     const session = await getServerSession(authOptions);
 
@@ -88,7 +88,7 @@ export async function DELETE(request) {
     const dbConnect = (await import('@/lib/mongodb')).default;
     const User = (await import('@/models/User')).default;
     const { getServerSession } = await import('next-auth');
-    const { authOptions } = await import('../auth/[...nextauth]/route');
+    const { authOptions } = await import('@/app/api/auth/[...nextauth]/route');
 
     const session = await getServerSession(authOptions);
 
